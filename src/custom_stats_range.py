@@ -9,9 +9,15 @@ from PyQt5 import QtWidgets
 from aqt.qt import qconnect
 import time
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from .util import *
+
+# Copied constants
+PERIOD_MONTH = 0
+PERIOD_YEAR = 1
+PERIOD_LIFE = 2
 
 # Custom period used by Custom Stats Range
-CSR_PERIOD = 3
+CSR_PERIOD = 999
 
 # Patch: aqt/forms/stats.py: Ui_Dialog.setupUi()
 # Reason: Add a new radio button (along with "1 month", "3 month", etc.)
@@ -39,8 +45,26 @@ def footer_NEW(self):
     b += "<br>"
     # b += "Period: %s" % ["1 month", "1 year", "deck life"][self.type]
     # TODO: Inject the actual custom range here
-    b += "Period: %s" % ["1 month", "1 year", "deck life", "Custom Range"][self.type]
+    if csr_enabled(self):
+        b += "Period: Custom Range"
+    else:
+        b += "Period: %s" % ["1 month", "1 year", "deck life"][self.type]
     return b
+
+# Patch: anki/stats.py: CollectionStats.report()
+# Reason: Handle our custom CSR_PERIOD, don't let it get stored in self.type
+report_OLD = anki.stats.CollectionStats.report
+
+def report_NEW(self, type: int = PERIOD_MONTH):
+    if type == CSR_PERIOD:
+        # Don't store custom period in self.type, to help remain compatible with other addons
+        # Enable a separate flag
+        self.type_csr = True
+        type = 0
+    else:
+        self.type_csr = False
+
+    return report_OLD(self, type)
 
 # Patch: aqt/stats.py: DeckStats.__init__()
 # Reason: Hook the "Custom Range" radio button to the changePeriod action
@@ -49,20 +73,19 @@ deckStats_init_OLD = aqt.stats.DeckStats.__init__
 def deckStats_init_NEW(self, mw):
     deckStats_init_OLD(self, mw)
     f = self.form
+
+    # Pass CSR_PERIOD as an indicator -- it won't actually get stored in CollectionStats.type
     qconnect(f.csr_option.clicked, lambda: self.changePeriod(CSR_PERIOD))
 
 # Patch: anki/stats.py: CollectionStats.get_start_end_chunk()
 # Reason: Add handling for the custom CSR period (3)
-PERIOD_MONTH = 0
-PERIOD_YEAR = 1
-PERIOD_LIFE = 2
 
 def get_start_end_chunk_new(self, by: str = "review"):
     start = 0
 
     ### Custom Stats Range code begins here ###
 
-    if self.type == CSR_PERIOD:
+    if csr_enabled(self):
         # Hardcode custom range of "7 days ago" to "14 days ago"
         # TODO: Make customizable
         start = 7
@@ -110,7 +133,7 @@ def _done_NEW(self, end, chunk: int = 1, start = 0):
     else:
         lim = ""
     # CSR line
-    if self.type == PERIOD_MONTH or self.type == CSR_PERIOD:
+    if self.type == PERIOD_MONTH or csr_enabled(self):
         tf = 60.0  # minutes
     else:
         tf = 3600.0  # hours
@@ -222,7 +245,7 @@ order by thetype, ease"""
 dueGraph_OLD = anki.stats.CollectionStats.dueGraph
 
 def dueGraph_NEW(self):
-    if self.type == CSR_PERIOD:
+    if csr_enabled(self):
         txt = self._title("Forecast", "(Graph omitted by Custom Stats Range.)")
         return txt
     else:
@@ -355,7 +378,7 @@ def repsGraphs_NEW(self):
             ),
         )
         # CSR line
-        if self.type == PERIOD_MONTH or self.type == CSR_PERIOD:
+        if self.type == PERIOD_MONTH or csr_enabled(self):
             t = "Minutes"
             convHours = False
         else:
@@ -375,6 +398,8 @@ def repsGraphs_NEW(self):
 aqt.forms.stats.Ui_Dialog.setupUi = setupUi_NEW
 
 anki.stats.CollectionStats.footer = footer_NEW
+
+anki.stats.CollectionStats.report = report_NEW
 
 aqt.stats.DeckStats.__init__ = deckStats_init_NEW
 
