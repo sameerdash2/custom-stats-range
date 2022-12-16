@@ -180,11 +180,11 @@ def _done_NEW(self, end, chunk: int = 1, start = 0):
     lims = []
     if end is not None:
         lims.append(
-            "id > %d" % ((self.col.sched.dayCutoff - (end * chunk * 86400)) * 1000)
+            "id > %d" % ((self.col.sched.day_cutoff - (end * chunk * 86400)) * 1000)
         )
         # CSR line
         lims.append(
-            "id < %d" % ((self.col.sched.dayCutoff - (start * chunk * 86400)) * 1000)
+            "id < %d" % ((self.col.sched.day_cutoff - (start * chunk * 86400)) * 1000)
         )
     lim = self._revlogLimit()
     if lim:
@@ -216,7 +216,7 @@ sum(case when type = {REVLOG_CRAM} then time/1000.0 else 0 end)/? -- cram time
 from revlog %s
 group by day order by day"""
         % lim,
-        self.col.sched.dayCutoff,
+        self.col.sched.day_cutoff,
         chunk,
         tf,
         tf,
@@ -239,8 +239,8 @@ def _daysStudied_NEW(self):
     lims = []
     start, end = _periodDays_NEW(self)
     if end:
-        lims.append("id > %d" % ((self.col.sched.dayCutoff - (end * 86400)) * 1000))
-        lims.append("id < %d" % ((self.col.sched.dayCutoff - (start * 86400)) * 1000))
+        lims.append("id > %d" % ((self.col.sched.day_cutoff - (end * 86400)) * 1000))
+        lims.append("id < %d" % ((self.col.sched.day_cutoff - (start * 86400)) * 1000))
     rlim = self._revlogLimit()
     if rlim:
         lims.append(rlim)
@@ -255,7 +255,7 @@ select count(), abs(min(day)) from (select
 from revlog %s
 group by day order by day)"""
         % lim,
-        self.col.sched.dayCutoff,
+        self.col.sched.day_cutoff,
     )
     assert ret
     return ret
@@ -271,11 +271,11 @@ def _eases_NEW(self) -> Any:
     (start, end) = _periodDays_NEW(self)
     if end is not None:
         lims.append(
-            "id > %d" % ((self.col.sched.dayCutoff - (end * 86400)) * 1000)
+            "id > %d" % ((self.col.sched.day_cutoff - (end * 86400)) * 1000)
         )
         # CSR line
         lims.append(
-            "id < %d" % ((self.col.sched.dayCutoff - (start * 86400)) * 1000)
+            "id < %d" % ((self.col.sched.day_cutoff - (start * 86400)) * 1000)
         )
     if lims:
         lim = "where " + " and ".join(lims)
@@ -467,7 +467,8 @@ def _hourRet_NEW(self):
     lim = self._revlogLimit()
     if lim:
         lim = " and " + lim
-    if self.col.schedVer() == 1:
+    # if self.col.schedVer() == 1:
+    if self.col.sched_ver() == 1:
         sd = datetime.datetime.fromtimestamp(self.col.crt)
         rolloverHour = sd.hour
     else:
@@ -475,9 +476,9 @@ def _hourRet_NEW(self):
     # pd = self._periodDays()
     start, end = _periodDays_NEW(self)
     if end:
-        lim += " and id > %d" % ((self.col.sched.dayCutoff - (86400 * end)) * 1000)
+        lim += " and id > %d" % ((self.col.sched.day_cutoff - (86400 * end)) * 1000)
         # CSR line
-        lim += " and id < %d" % ((self.col.sched.dayCutoff - (86400 * start)) * 1000)
+        lim += " and id < %d" % ((self.col.sched.day_cutoff - (86400 * start)) * 1000)
     return self.col.db.all(
         f"""
 select
@@ -488,7 +489,7 @@ count()
 from revlog where type in ({REVLOG_LRN},{REVLOG_REV},{REVLOG_RELRN}) %s
 group by hour having count() > 30 order by hour"""
         % lim,
-        self.col.sched.dayCutoff - (rolloverHour * 3600),
+        self.col.sched.day_cutoff - (rolloverHour * 3600),
     )
 
 # Apply monkey patches
