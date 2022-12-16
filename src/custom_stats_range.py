@@ -311,6 +311,16 @@ def dueGraph_NEW(self):
     else:
         return dueGraph_OLD(self)
 
+# Patch: anki/stats.py: CollectionStats.ivlGraph()
+# Reason: Disable the "Intervals" plot if custom stats range is enabled.
+ivlGraph_OLD = anki.stats.CollectionStats.ivlGraph
+
+def ivlGraph_NEW(self):
+    if csr_enabled(self):
+        txt = self._title("Intervals", "(Graph omitted by Custom Stats Range.)")
+        return txt
+    else:
+        return ivlGraph_OLD(self)
 
 # Patch: anki/stats.py: CollectionStats._ansInfo()
 # Reason: Add support for date ranges, instead of "last X days"
@@ -468,6 +478,8 @@ aqt.stats.DeckStats.refresh = refresh_NEW
 anki.stats.CollectionStats.get_start_end_chunk = get_start_end_chunk_NEW
 
 anki.stats.CollectionStats.dueGraph = dueGraph_NEW
+
+anki.stats.CollectionStats.ivlGraph = ivlGraph_NEW
 
 anki.stats.CollectionStats._daysStudied = _daysStudied_NEW
 
