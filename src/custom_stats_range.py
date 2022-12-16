@@ -12,6 +12,7 @@ import time
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 from .util import *
 from aqt.utils import tooltip
+import datetime
 
 # Copied constants
 PERIOD_MONTH = 0
@@ -181,9 +182,8 @@ def _done_NEW(self, end, chunk: int = 1, start = 0):
             "id > %d" % ((self.col.sched.dayCutoff - (end * chunk * 86400)) * 1000)
         )
         # CSR line
-        # Use (start - 1) to include the start day itself
         lims.append(
-            "id < %d" % ((self.col.sched.dayCutoff - ((start - 1) * chunk * 86400)) * 1000)
+            "id < %d" % ((self.col.sched.dayCutoff - (start * chunk * 86400)) * 1000)
         )
     lim = self._revlogLimit()
     if lim:
@@ -239,8 +239,7 @@ def _daysStudied_NEW(self):
     start, end = _periodDays_NEW(self)
     if end:
         lims.append("id > %d" % ((self.col.sched.dayCutoff - (end * 86400)) * 1000))
-        # Use (start - 1) to include the start day itself
-        lims.append("id < %d" % ((self.col.sched.dayCutoff - ((start - 1) * 86400)) * 1000))
+        lims.append("id < %d" % ((self.col.sched.dayCutoff - (start * 86400)) * 1000))
     rlim = self._revlogLimit()
     if rlim:
         lims.append(rlim)
@@ -274,9 +273,8 @@ def _eases_NEW(self) -> Any:
             "id > %d" % ((self.col.sched.dayCutoff - (end * 86400)) * 1000)
         )
         # CSR line
-        # Use (start - 1) to include the start day itself
         lims.append(
-            "id < %d" % ((self.col.sched.dayCutoff - ((start - 1) * 86400)) * 1000)
+            "id < %d" % ((self.col.sched.dayCutoff - (start * 86400)) * 1000)
         )
     if lims:
         lim = "where " + " and ".join(lims)
@@ -462,6 +460,35 @@ def repsGraphs_NEW(self):
         txt2 += rep
         return self._section(txt1) + self._section(txt2)
 
+# Patch: anki/stats.py: CollectionStats._hourRet()
+# Reason: Support custom stats range in computation of data for "Hourly Breakdown" plot.
+def _hourRet_NEW(self):
+    lim = self._revlogLimit()
+    if lim:
+        lim = " and " + lim
+    if self.col.schedVer() == 1:
+        sd = datetime.datetime.fromtimestamp(self.col.crt)
+        rolloverHour = sd.hour
+    else:
+        rolloverHour = self.col.conf.get("rollover", 4)
+    # pd = self._periodDays()
+    start, end = _periodDays_NEW(self)
+    if end:
+        lim += " and id > %d" % ((self.col.sched.dayCutoff - (86400 * end)) * 1000)
+        # CSR line
+        lim += " and id < %d" % ((self.col.sched.dayCutoff - (86400 * start)) * 1000)
+    return self.col.db.all(
+        f"""
+select
+23 - ((cast((? - id/1000) / 3600.0 as int)) %% 24) as hour,
+sum(case when ease = 1 then 0 else 1 end) /
+cast(count() as float) * 100,
+count()
+from revlog where type in ({REVLOG_LRN},{REVLOG_REV},{REVLOG_RELRN}) %s
+group by hour having count() > 30 order by hour"""
+        % lim,
+        self.col.sched.dayCutoff - (rolloverHour * 3600),
+    )
 
 # Apply monkey patches
 
@@ -486,3 +513,5 @@ anki.stats.CollectionStats._daysStudied = _daysStudied_NEW
 anki.stats.CollectionStats._eases = _eases_NEW
 
 anki.stats.CollectionStats.repsGraphs = repsGraphs_NEW
+
+anki.stats.CollectionStats._hourRet = _hourRet_NEW
