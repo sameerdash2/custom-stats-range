@@ -6,10 +6,12 @@ import anki.stats
 import aqt.stats
 import aqt.forms
 from PyQt5 import QtWidgets
+from PyQt5.QtCore import QDate
 from aqt.qt import qconnect
 import time
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 from .util import *
+from aqt.utils import tooltip
 
 # Copied constants
 PERIOD_MONTH = 0
@@ -25,11 +27,26 @@ setupUi_OLD = aqt.forms.stats.Ui_Dialog.setupUi
 
 def setupUi_NEW(self, Dialog):
     setupUi_OLD(self, Dialog)
-    # TODO: Might need to fully copy the function & inject
+    # Add CSR radio button
     self.csr_option = QtWidgets.QRadioButton(self.groupBox)
-    self.csr_option.setText("Custom Range")
+    self.csr_option.setText("Custom Range:")
     self.csr_option.setObjectName("csr_option")
     self.horizontalLayout.addWidget(self.csr_option)
+
+    today = QDate.currentDate()
+    # Add Start Date input field
+    self.csr_start = QtWidgets.QDateEdit(
+        parent=self.groupBox,
+        date=today.addDays(-30)
+    )
+    self.horizontalLayout.addWidget(self.csr_start)
+
+    # Add End Date input field
+    self.csr_end = QtWidgets.QDateEdit(
+        parent=self.groupBox,
+        date=today
+    )
+    self.horizontalLayout.addWidget(self.csr_end)
 
 # Patch: anki/stats.py: CollectionStats.footer()
 # Reason: Need to modify the hardcoded array used to write the footer of the Stats page
@@ -55,11 +72,13 @@ def footer_NEW(self):
 # Reason: Handle our custom CSR_PERIOD, don't let it get stored in self.type
 report_OLD = anki.stats.CollectionStats.report
 
-def report_NEW(self, type: int = PERIOD_MONTH):
+def report_NEW(self, type: int = PERIOD_MONTH, custom_range: tuple = (0, 30)):
     if type == CSR_PERIOD:
         # Don't store custom period in self.type, to help remain compatible with other addons
         # Enable a separate flag
         self.type_csr = True
+        self.csr_start = custom_range[0]
+        self.csr_end = custom_range[1]
         type = 0
     else:
         self.type_csr = False
@@ -77,19 +96,60 @@ def deckStats_init_NEW(self, mw):
     # Pass CSR_PERIOD as an indicator -- it won't actually get stored in CollectionStats.type
     qconnect(f.csr_option.clicked, lambda: self.changePeriod(CSR_PERIOD))
 
-# Patch: anki/stats.py: CollectionStats.get_start_end_chunk()
-# Reason: Add handling for the custom CSR period (3)
+# Patch: aqt/stats.py: DeckStats.refresh()
+# Reason: Implement an alternate version that verifies & passes on 
+# the custom Start & End dates to the CollectionStats object.
+refresh_OLD = aqt.stats.DeckStats.refresh
 
-def get_start_end_chunk_new(self, by: str = "review"):
+def refresh_NEW(self):
+    if self.period == CSR_PERIOD:
+        # Verify inputted dates
+        start_date = self.form.csr_start.date() # Returns QDate object
+        end_date = self.form.csr_end.date()
+        start_julian = start_date.toJulianDay()
+        end_julian = end_date.toJulianDay()
+        if start_julian > end_julian:
+            tooltip("Error: Start date must not exceed end date", 5000)
+        else:
+            today = QDate.currentDate()
+            # Anki interprets "start" as the later date, so switch them
+            csr_start = end_date.daysTo(today)
+            # Anki excludes the "end" date; it takes (end, start].
+            # Since this is "days ago", add 1 to get the previous date
+            csr_end = start_date.daysTo(today) + 1
+
+            # --- COPY DeckStats.refresh() (with 1 change) ---
+            self.mw.progress.start(parent=self)
+            stats = self.mw.col.stats()
+            stats.wholeCollection = self.wholeCollection
+            # CSR line: modified to pass on start/end dates to CollectionStats.report()
+            self.report = stats.report(
+                type=self.period,
+                custom_range=(csr_start, csr_end)
+            )
+            self.form.web.title = "deck stats"
+            self.form.web.stdHtml(
+                "<html><body>" + self.report + "</body></html>",
+                js=["js/vendor/jquery.js", "js/vendor/plot.js"],
+                context=self,
+            )
+            self.mw.progress.finish()
+            # --- END COPY of DeckStats.refresh() ---
+    else:
+        refresh_OLD(self)
+
+# Patch: anki/stats.py: CollectionStats.get_start_end_chunk()
+# Reason: Add handling for the Custom stats range when calculating start & end values
+def get_start_end_chunk_NEW(self, by: str = "review"):
     start = 0
 
     ### Custom Stats Range code begins here ###
 
     if csr_enabled(self):
-        # Hardcode custom range of "7 days ago" to "14 days ago"
-        # TODO: Make customizable
-        start = 7
-        end = 14
+        # Extract start & end dates that should have been stored as attributes
+        start = self.csr_start
+        end = self.csr_end
+        # TODO: Increase chunk size according to the range
         chunk = 1
     elif self.type == PERIOD_MONTH:
     ### Custom Stats Range code ends here ###
@@ -403,7 +463,9 @@ anki.stats.CollectionStats.report = report_NEW
 
 aqt.stats.DeckStats.__init__ = deckStats_init_NEW
 
-anki.stats.CollectionStats.get_start_end_chunk = get_start_end_chunk_new
+aqt.stats.DeckStats.refresh = refresh_NEW
+
+anki.stats.CollectionStats.get_start_end_chunk = get_start_end_chunk_NEW
 
 anki.stats.CollectionStats.dueGraph = dueGraph_NEW
 
