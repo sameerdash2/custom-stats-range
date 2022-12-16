@@ -31,6 +31,7 @@ def setupUi_NEW(self, Dialog):
     # Add CSR radio button
     self.csr_option = QtWidgets.QRadioButton(self.groupBox)
     self.csr_option.setText("Custom Range:")
+    self.csr_option.setStyleSheet("color: gold;")
     self.csr_option.setObjectName("csr_option")
     self.horizontalLayout.addWidget(self.csr_option)
 
