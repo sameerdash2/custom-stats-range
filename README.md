@@ -12,6 +12,10 @@ Custom Stats Range (CSR) is an Anki add-on that lets the user supply a custom da
 
 To install, see the add-on's page on [AnkiWeb](https://ankiweb.net/shared/info/84374528).
 
+## Changelog
+
+For recent changes, check out the [changelog](CHANGELOG.md).
+
 ## Features
 
 - Better fine-tuning over which statistics you want to see
