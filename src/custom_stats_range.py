@@ -63,9 +63,15 @@ def footer_NEW(self):
     b += "Scope: %s" % deck
     b += "<br>"
     # b += "Period: %s" % ["1 month", "1 year", "deck life"][self.type]
-    # TODO: Inject the actual custom range here
     if csr_enabled(self):
-        b += "Period: Custom Range"
+        # Insert the custom start & end dates in the footer.
+
+        today = datetime.date.today()
+        # Subtract 1 to get the true "from" date
+        from_date = today - datetime.timedelta(days=self.csr_end - 1)
+        to_date = today - datetime.timedelta(days=self.csr_start)
+
+        b += "Period: %s to %s" % (from_date.strftime("%x"), to_date.strftime("%x"))
     else:
         b += "Period: %s" % ["1 month", "1 year", "deck life"][self.type]
     return b
