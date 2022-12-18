@@ -160,8 +160,18 @@ def get_start_end_chunk_NEW(self, by: str = "review"):
         # Extract start & end dates that should have been stored as attributes
         start = self.csr_start
         end = self.csr_end
-        # TODO: Increase chunk size according to the range
+
+        # Use a chunk size of 1 day no matter how large the range.
+        # Anki computes stats *based on* chunks, so if chunk != 1,
+        # it may include extra days beyond the "end" date to fill in the chunk.
+        # TODO: Could possibly allow the user to configure this
         chunk = 1
+
+        # Bring down start & end values to match chunk
+        # (These statements are currently redundant)
+        start = start // chunk
+        end = end // chunk
+
     elif self.type == PERIOD_MONTH:
     ### Custom Stats Range code ends here ###
 
