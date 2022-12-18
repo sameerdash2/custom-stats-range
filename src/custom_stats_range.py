@@ -43,6 +43,9 @@ def setupUi_NEW(self, Dialog):
     )
     self.horizontalLayout.addWidget(self.csr_start)
 
+    self.csr_to_label = QtWidgets.QLabel(parent=self.groupBox, text="to")
+    self.horizontalLayout.addWidget(self.csr_to_label)
+
     # Add End Date input field
     self.csr_end = QtWidgets.QDateEdit(
         parent=self.groupBox,
