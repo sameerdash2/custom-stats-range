@@ -1,8 +1,10 @@
 from anki.stats import CollectionStats
-from anki.sched import Scheduler
-from anki import version
+from anki.scheduler.base import SchedulerBase
+from anki.utils import pointVersion
 
-anki_patch_ver = int(version.split(".")[2])
+# For Anki 2.1.x releases, it will return the x.
+# For Anki 23.10+, it packs the full version into 6 digits.
+anki_point_ver = pointVersion()
 
 
 def csr_enabled(self: CollectionStats):
@@ -14,8 +16,8 @@ def csr_enabled(self: CollectionStats):
     )
 
 
-def get_day_cutoff(self: Scheduler):
-    if (anki_patch_ver >= 50):
+def get_day_cutoff(self: SchedulerBase):
+    if (anki_point_ver >= 50):
         return self.day_cutoff
     else:
         return self.dayCutoff

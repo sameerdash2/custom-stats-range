@@ -5,14 +5,19 @@ Custom Stats Range (CSR) Add-on for Anki
 import anki.stats
 import aqt.stats
 import aqt.forms
-from PyQt5 import QtWidgets
-from PyQt5.QtCore import QDate
+from aqt.qt import QDate
 from aqt.qt import qconnect
 import time
 from typing import Any, List, Optional, Tuple
 from .util import csr_enabled, get_day_cutoff
 from aqt.utils import tooltip
 import datetime
+# The QtWidgets module doesn't seem to be in aqt.qt.
+# Try importing from Qt6, then from Qt5 if that fails.
+try:
+    from PyQt6 import QtWidgets
+except ImportError:
+    from PyQt5 import QtWidgets
 
 # Copied constants
 PERIOD_MONTH = 0
