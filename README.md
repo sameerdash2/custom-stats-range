@@ -12,6 +12,8 @@ Custom Stats Range (CSR) is an Anki add-on that lets the user supply a custom da
 
 To install, see the add-on's page on [AnkiWeb](https://ankiweb.net/shared/info/84374528).
 
+Important: **you must use the old Stats window, by shift-clicking the Stats button.** The new Stats window (added in 2.1.28) is written with a different framework which is much harder to modify as it requires complex & undocumented JavaScript injections.
+
 ## Changelog
 
 For recent changes, check out the [changelog](CHANGELOG.md).
@@ -24,11 +26,18 @@ For recent changes, check out the [changelog](CHANGELOG.md).
 
 ## Compatibility
 
-**Anki versions**: I have tested this on 2.1.49 and 2.1.54 (Qt5 and Qt6) on Windows. Earlier versions (2.1.x) will probably work, but have caution.
+I have tested on the following Anki versions:
 
-**Other add-ons**: This may break other add-ons that modify the Stats window. Anki does not provide an API, and the logic for the default options ("1 month," "3 month") has been baked deep into the source code. Thus, I've had to rip out and overwrite many of the functions that calculate and display statistics. If other add-ons are trying to patch those same functions, one of them will suffer. So far I have made this compatible with [Review Heatmap](https://ankiweb.net/shared/info/1771074083) and [True Retention](https://ankiweb.net/shared/info/613684242), but I haven't tested alongside many other add-ons.
+* 2.1.54, Qt6 build
+* 23.10.1, Qt5 build
+* 23.10.1, Qt6 build
+
+It'll probably work on older versions too, but I can't make any guarantees -- it's a lot of work to test multiple versions. In fact, I can't even get the old Stats window (shift + click) to show any graphs on 2.1.55 through 2.1.66.
+
+If the add-on is broken in a *recent* version of Anki, open an issue with debug info and I'll see if I can fix it.
 
 ## Notes
 
-- **You must use the old Stats window for this add-on by shift-clicking the Stats button.** The new Stats window (added in 2.1.28) is written with a different framework which is much harder to modify as it requires complex & undocumented JavaScript injections.
+- **Compatibility with other add-ons**: This may break other add-ons that modify the Stats window. Anki does not provide an API, and the logic for the default options ("1 month," "3 month") has been baked deep into the source code. Thus, I've had to overwrite and patch many of the functions that calculate and display statistics. If other add-ons are trying to patch those same functions, one of them will suffer. So far I have made this compatible with [Review Heatmap](https://ankiweb.net/shared/info/1771074083) and [True Retention](https://ankiweb.net/shared/info/613684242), but I haven't tested alongside many other add-ons.
+
 - **The Forecast and Intervals graphs are hidden when CSR is on.** This is because they usually do not show any relevant information for the custom range.
